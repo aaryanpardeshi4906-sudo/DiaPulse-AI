@@ -1,130 +1,80 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AppShell from './components/layout/AppShell'
+import LoginPage from './pages/LoginPage'
+import DashboardPage from './pages/DashboardPage'
+import HealthOverviewPage from './pages/HealthOverviewPage'
+import HealthRecordsPage from './pages/HealthRecordsPage'
+import AnalyticsPage from './pages/AnalyticsPage'
+import InsightsPage from './pages/InsightsPage'
+import RemindersPage from './pages/RemindersPage'
+import ExercisePage from './pages/ExercisePage'
+import AssistantPage from './pages/AssistantPage'
+import CaregiverPage from './pages/CaregiverPage'
+import ClinicianPage from './pages/ClinicianPage'
+import ProfilePage from './pages/ProfilePage'
+import SettingsPage from './pages/SettingsPage'
+import SecurityPage from './pages/SecurityPage'
 import { supabase } from './lib/supabaseClient'
 
 function App() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleSignUp = async () => {
-    setLoading(true)
-    setMessage('')
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setLoading(false)
     })
 
-    setLoading(false)
-
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage('Check your email to confirm your account.')
-    }
-  }
-
-  const handleLogin = async () => {
-    setLoading(true)
-    setMessage('')
-
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession)
+      setLoading(false)
     })
 
-    setLoading(false)
+    return () => subscription.unsubscribe()
+  }, [])
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage('Login successful!')
-    }
-  }
+  const userName = useMemo(() => {
+    if (!session) return 'User'
+    return session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User'
+  }, [session])
 
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setMessage('Enter your email address first.')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'http://localhost:5173',
-    })
-
-    setLoading(false)
-
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage('Password reset link sent to your email.')
-    }
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f3f7fb]">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 text-sm font-semibold text-slate-600 shadow-sm">
+          Loading DiaPulse AI…
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-slate-900 text-center">
-          DiaPulse AI
-        </h1>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={session ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+        <Route path="/" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
 
-        <p className="text-slate-500 text-center mt-2">
-          Personalized Health Companion
-        </p>
+        <Route path="/dashboard" element={session ? <AppShell userName={userName}><DashboardPage session={session} /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/health" element={session ? <AppShell userName={userName}><HealthOverviewPage /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/records" element={session ? <AppShell userName={userName}><HealthRecordsPage session={session} /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/analytics" element={session ? <AppShell userName={userName}><AnalyticsPage session={session} /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/insights" element={session ? <AppShell userName={userName}><InsightsPage session={session} /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/reminders" element={session ? <AppShell userName={userName}><RemindersPage session={session} /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/exercise" element={session ? <AppShell userName={userName}><ExercisePage /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/assistant" element={session ? <AppShell userName={userName}><AssistantPage session={session} /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/caregiver" element={session ? <AppShell userName={userName}><CaregiverPage /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/clinician" element={session ? <AppShell userName={userName}><ClinicianPage /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/profile" element={session ? <AppShell userName={userName}><ProfilePage /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/settings" element={session ? <AppShell userName={userName}><SettingsPage /></AppShell> : <Navigate to="/login" replace />} />
+        <Route path="/privacy" element={session ? <AppShell userName={userName}><SecurityPage /></AppShell> : <Navigate to="/login" replace />} />
 
-        <div className="mt-8 space-y-4">
-          <input
-            type="email"
-            placeholder="Email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded-lg px-4 py-3"
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border rounded-lg px-4 py-3"
-          />
-
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-blue-600 text-white rounded-lg py-3 font-semibold"
-          >
-            {loading ? 'Please wait...' : 'Login'}
-          </button>
-
-          <button
-            onClick={handleForgotPassword}
-            disabled={loading}
-            className="w-full text-blue-600 text-sm font-medium"
-          >
-            Forgot Password?
-          </button>
-
-          <button
-            onClick={handleSignUp}
-            disabled={loading}
-            className="w-full border border-blue-600 text-blue-600 rounded-lg py-3 font-semibold"
-          >
-            Create Account
-          </button>
-
-          {message && (
-            <p className="text-center text-sm text-slate-600">
-              {message}
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+        <Route path="*" element={<Navigate to={session ? '/dashboard' : '/login'} replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 
